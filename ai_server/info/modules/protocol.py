@@ -13,7 +13,7 @@ class ErrorResponse(BaseModel):
 class ChatRequest(BaseModel):
     prompt: str
     history: List = Field(default=[], description="历史记录")
-    generation_configs: Dict = {}
+    generation_configs: Dict = Field(default={})
     stream: bool = Field(default=True, description="是否流式输出")
 
 

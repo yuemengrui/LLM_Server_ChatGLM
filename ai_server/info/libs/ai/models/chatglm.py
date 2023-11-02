@@ -66,12 +66,16 @@ class ChatGLM:
         self.logger = logger
         self.max_length = 8192
 
+        self._load_model(model_name_or_path, device)
+
         if model_name and '32k' in model_name:
             self.max_length = 32768
 
-        self.max_prompt_length = self.max_length - 2048
-        self._load_model(model_name_or_path, device)
+        self.max_new_tokens = 2048
+        if self.logger:
+            self.logger.info(str({'max_length': self.max_length, 'max_new_tokens': self.max_new_tokens}))
 
+        # warmup
         self.lets_chat('你好', [], stream=False)
 
     def _load_model(self,
@@ -178,19 +182,20 @@ class ChatGLM:
         inputs = inputs.to(self.device)
         return inputs
 
-    def lets_batch_chat(self, **kwargs):
-        pass
+    def lets_chat(self, prompt, history, stream, generation_configs={}, **kwargs):
 
-    def lets_chat(self, prompt, history, stream=True, max_prompt_length=None, max_length=None, **kwargs):
+        if not (('max_new_tokens' in generation_configs) and (
+                isinstance(generation_configs['max_new_tokens'], int)) and (
+                        128 < generation_configs['max_new_tokens'] < self.max_length)):
+            generation_configs.update({'max_new_tokens': self.max_new_tokens})
 
-        if max_length is None or max_length > self.max_length:
-            max_length = self.max_length
-        if max_prompt_length is None or max_prompt_length > self.max_prompt_length:
-            max_prompt_length = self.max_prompt_length
+        generation_configs.update({'max_length': self.max_length})
+        max_prompt_length = self.max_length - generation_configs['max_new_tokens']
 
         if self.logger:
             self.logger.info(
-                str({'max_length': max_length, 'max_prompt_length': max_prompt_length}) + '\n' + str(kwargs) + '\n')
+                str({'max_prompt_length': max_prompt_length, 'generation_configs': generation_configs}) + '\n' + str(
+                    kwargs) + '\n')
 
         history = self.select_history(prompt, history, max_prompt_length)
 
@@ -204,12 +209,16 @@ class ChatGLM:
         if stream:
             def stream_generator():
                 start = time.time()
-                for resp in self.model.stream_chat(self.tokenizer, prompt, history, max_length=max_length, **kwargs):
+                for resp in self.model.stream_chat(tokenizer=self.tokenizer,
+                                                   query=prompt,
+                                                   history=history,
+                                                   **generation_configs,
+                                                   **kwargs):
                     generation_tokens = self.token_counter(resp[0])
                     time_cost = time.time() - start
                     average_speed = f"{generation_tokens / time_cost:.3f} token/s"
                     torch_gc(self.device)
-                    # his = [list(x) for x in resp[1]]
+
                     yield {"model_name": self.model_name,
                            "answer": resp[0],
                            "history": history,
@@ -220,12 +229,15 @@ class ChatGLM:
             return stream_generator()
         else:
             start = time.time()
-            answer, _ = self.model.chat(self.tokenizer, prompt, history, max_length=max_length, **kwargs)
+            answer, _ = self.model.chat(tokenizer=self.tokenizer,
+                                        query=prompt,
+                                        history=history,
+                                        **generation_configs,
+                                        **kwargs)
             generation_tokens = self.token_counter(answer)
             time_cost = time.time() - start
             average_speed = f"{generation_tokens / time_cost:.3f} token/s"
             torch_gc(self.device)
-            # his = [list(x) for x in history]
 
             return {"model_name": self.model_name,
                     "answer": answer,

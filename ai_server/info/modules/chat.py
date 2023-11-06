@@ -1,8 +1,9 @@
 # *_*coding:utf-8 *_*
 # @Author : YueMengRui
 import json
+from mylogger import logger
 from fastapi import APIRouter, Request
-from info import logger, limiter, chatglm
+from info import limiter, chatglm
 from configs import API_LIMIT
 from .protocol import ChatRequest, TokenCountRequest, ErrorResponse, TokenCountResponse
 from fastapi.responses import JSONResponse, StreamingResponse

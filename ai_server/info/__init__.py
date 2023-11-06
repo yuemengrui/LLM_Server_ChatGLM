@@ -1,6 +1,6 @@
 # *_*coding:utf-8 *_*
 import time
-from logger import logger
+from mylogger import logger
 from configs import CHATGLM_CONFIG
 from fastapi.requests import Request
 from starlette.middleware.cors import CORSMiddleware

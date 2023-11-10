@@ -21,10 +21,23 @@ def llm_chat(request: Request,
 
     token_counter_resp = chatglm.check_token_len(req.prompt)
     if not token_counter_resp[0]:
-        return JSONResponse(ErrorResponse(errcode=RET.TOKEN_OVERFLOW,
-                                          errmsg=error_map[
-                                                     RET.TOKEN_OVERFLOW] + u"当前prompt token:{} 支持的最大token:{}".format(
-                                              token_counter_resp[1], token_counter_resp[2])).dict(), status_code=413)
+        if req.stream:
+            def stream_generator():
+                yield json.dumps({"model_name": chatglm.model_name,
+                                  "answer": "token长度超过限制! 当前prompt token:{} 支持的最大token:{}".format(
+                                      token_counter_resp[1], token_counter_resp[2]),
+                                  "time_cost": {"generation": "0s"},
+                                  "usage": {"prompt_tokens": token_counter_resp[1], "generation_tokens": 0,
+                                            "total_tokens": token_counter_resp[1], "average_speed": "0"}}
+                                 , ensure_ascii=False)
+
+            return StreamingResponse(stream_generator(), media_type="text/event-stream")
+        else:
+            return JSONResponse(ErrorResponse(errcode=RET.TOKEN_OVERFLOW,
+                                              errmsg=error_map[
+                                                         RET.TOKEN_OVERFLOW] + u"当前prompt token:{} 支持的最大token:{}".format(
+                                                  token_counter_resp[1], token_counter_resp[2])).dict(),
+                                status_code=413)
 
     if req.stream:
         def stream_generator():

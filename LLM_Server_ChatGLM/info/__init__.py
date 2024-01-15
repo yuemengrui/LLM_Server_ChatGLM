@@ -13,8 +13,10 @@ from fastapi.openapi.docs import (
 )
 from fastapi.staticfiles import StaticFiles
 from info.libs.ai.models.chatglm import ChatGLM
+from info.utils.model_register import register_model_to_server
 
 chatglm = ChatGLM(logger=logger, **CHATGLM_CONFIG)
+register_model_to_server(CHATGLM_CONFIG['model_name'])
 limiter = Limiter(key_func=lambda *args, **kwargs: '127.0.0.1')
 
 

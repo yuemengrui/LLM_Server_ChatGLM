@@ -48,6 +48,7 @@ def llm_chat(request: Request,
         return StreamingResponse(stream_generator(), media_type="text/event-stream")
     else:
         resp = chatglm.lets_chat(**req.dict())
+        logger.info(str(resp))
         return JSONResponse(resp)
 
 
